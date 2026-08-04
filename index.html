@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LinkedIn Hunter — Extract Recruiter Emails</title>
+  <title>LinkedIn Hunter Pro</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,28 +14,37 @@
     </header>
 
     <main>
-      <section class="card input-card">
-        <h2>Step 1 — Paste Job URL</h2>
+      <section class="card">
+        <h2>Paste LinkedIn Job URL</h2>
         <div class="input-group">
           <input type="url" id="jobUrl" placeholder="https://www.linkedin.com/jobs/view/..." />
         </div>
+
+        <div class="input-group">
+          <label>
+            <input type="checkbox" id="enableSubscribe" />
+            Email me the results
+          </label>
+        </div>
+
+        <div class="input-group hidden" id="subscribeGroup">
+          <label for="subscribeEmail">Your Email</label>
+          <input type="email" id="subscribeEmail" placeholder="you@example.com" />
+        </div>
+
         <button id="startBtn" class="primary-btn">Start Extraction</button>
         <div id="status" class="status hidden"></div>
       </section>
 
-      <section class="card progress-card hidden" id="progressCard">
-        <h2>Extracting...</h2>
-        <div class="progress-bar">
-          <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <p id="progressText" class="progress-text"></p>
-      </section>
-
       <section class="card bookmarklet-card">
-        <h2>Step 2 — Use the Bookmarklet</h2>
-        <p>Drag the button below to your bookmarks bar, then click it on any LinkedIn page to extract data.</p>
-        <button id="bookmarkletBtn" class="secondary-btn">📌 Get Bookmarklet</button>
-        <div id="bookmarkletCode" class="bookmarklet-code hidden"></div>
+        <h2>Bookmarklet</h2>
+        <p class="help-text">Drag the button below to your browser bookmarks bar. Then open a LinkedIn company people page and click it.</p>
+        <button id="startBookmarkletBtn" class="secondary-btn">📌 Drag this to bookmarks</button>
+        <div id="bookmarkletBox" class="bookmarklet-box hidden">
+          <p class="small">Drag this link to your bookmarks bar:</p>
+          <a id="bookmarkletLink" class="bookmarklet-link" href="#">LinkedIn Hunter</a>
+          <div id="bookmarkletCode" class="bookmarklet-code"></div>
+        </div>
       </section>
 
       <section class="card results-card hidden" id="resultsCard">
@@ -43,17 +52,23 @@
           <h2>Results</h2>
           <span id="resultCount" class="result-count"></span>
         </div>
+
+        <div class="result-filters">
+          <label><input type="checkbox" id="showVerified" /> Show verified emails only</label>
+        </div>
+
         <div id="resultsList"></div>
+
         <div class="results-actions">
-          <button id="copyAllBtn" class="secondary-btn">Copy All Emails</button>
-          <button id="clearResultsBtn" class="secondary-btn">Clear Results</button>
+          <button id="copyEmailsBtn" class="secondary-btn">Copy Emails</button>
           <button id="exportCsvBtn" class="secondary-btn">Export CSV</button>
+          <button id="sendResultsBtn" class="secondary-btn hidden">Send Results to My Email</button>
         </div>
       </section>
     </main>
 
     <footer>
-      <p>LinkedIn Hunter — Built for recruiter outreach</p>
+      <p>LinkedIn Hunter — Paste a job link, get recruiter contacts</p>
     </footer>
   </div>
 

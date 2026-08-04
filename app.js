@@ -1,27 +1,28 @@
+const BACKEND_URL = 'http://localhost:3000';
+
 const startBtn = document.getElementById('startBtn');
 const jobUrlInput = document.getElementById('jobUrl');
 const statusEl = document.getElementById('status');
-const progressCard = document.getElementById('progressCard');
-const progressFill = document.getElementById('progressFill');
-const progressText = document.getElementById('progressText');
 const resultsCard = document.getElementById('resultsCard');
 const resultsList = document.getElementById('resultsList');
 const resultCount = document.getElementById('resultCount');
-const copyAllBtn = document.getElementById('copyAllBtn');
-const clearResultsBtn = document.getElementById('clearResultsBtn');
+const copyEmailsBtn = document.getElementById('copyEmailsBtn');
 const exportCsvBtn = document.getElementById('exportCsvBtn');
-const bookmarkletBtn = document.getElementById('bookmarkletBtn');
-const bookmarkletCode = document.getElementById('bookmarkletCode');
+const sendResultsBtn = document.getElementById('sendResultsBtn');
+const showVerifiedChk = document.getElementById('showVerified');
+const enableSubscribeChk = document.getElementById('enableSubscribe');
+const subscribeGroup = document.getElementById('subscribeGroup');
+const subscribeEmail = document.getElementById('subscribeEmail');
 
-let collectedContacts = [];
-let currentJobUrl = '';
+let filteredContacts = [];
+let subscribeToken = null;
 
 startBtn.addEventListener('click', handleStart);
-jobUrlInput.addEventListener('keydown', handleInputKeydown);
-copyAllBtn.addEventListener('click', handleCopyAll);
-clearResultsBtn.addEventListener('click', handleClearResults);
+copyEmailsBtn.addEventListener('click', handleCopyEmails);
 exportCsvBtn.addEventListener('click', handleExportCsv);
-bookmarkletBtn.addEventListener('click', handleBookmarklet);
+sendResultsBtn.addEventListener('click', handleSendResults);
+showVerifiedChk.addEventListener('change', handleFilterChange);
+enableSubscribeChk.addEventListener('change', handleSubscribeToggle);
 
 function showStatus(msg, type) {
   statusEl.textContent = msg;
@@ -33,160 +34,105 @@ function hideStatus() {
   statusEl.classList.add('hidden');
 }
 
-function setProgress(percent, text) {
-  progressCard.classList.remove('hidden');
-  progressFill.style.width = percent + '%';
-  progressText.textContent = text;
-}
-
-function hideProgress() {
-  progressCard.classList.add('hidden');
-  progressFill.style.width = '0%';
-}
-
-function showResults() {
-  resultsCard.classList.remove('hidden');
-  resultsList.innerHTML = '';
-  resultCount.textContent = collectedContacts.length + ' contact(s) found';
-
-  if (collectedContacts.length === 0) {
-    resultsList.innerHTML = '<p style="font-size:13px;color:#666;">No contacts found.</p>';
-    return;
-  }
-
-  collectedContacts.forEach((c) => {
-    const item = document.createElement('div');
-    item.className = 'result-item';
-
-    const name = document.createElement('div');
-    name.className = 'name';
-    name.textContent = c.name || 'Unknown';
-
-    const role = document.createElement('div');
-    role.className = 'role';
-    role.textContent = c.role || '';
-
-    const email = document.createElement('div');
-    email.className = c.email ? 'email' : 'no-email';
-    email.textContent = c.email || 'No email found';
-
-    item.appendChild(name);
-    item.appendChild(role);
-    item.appendChild(email);
-    resultsList.appendChild(item);
-  });
-}
-
-function handleInputKeydown(event) {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    handleStart();
+function handleSubscribeToggle() {
+  if (enableSubscribeChk.checked) {
+    subscribeGroup.classList.remove('hidden');
+  } else {
+    subscribeGroup.classList.add('hidden');
   }
 }
 
-function handleStart() {
+async function handleStart() {
   const url = jobUrlInput.value.trim();
   if (!url) {
     showStatus('Please enter a LinkedIn job URL', 'error');
     return;
   }
-
   if (!url.includes('linkedin.com/jobs')) {
     showStatus('Please enter a valid LinkedIn jobs URL', 'error');
+    return;
+  }
+
+  const subscribe = enableSubscribeChk.checked;
+  const email = subscribe ? subscribeEmail.value.trim() : null;
+
+  if (subscribe && (!email || !email.includes('@'))) {
+    showStatus('Please enter a valid email for subscription', 'error');
     return;
   }
 
   hideStatus();
   resultsCard.classList.add('hidden');
   startBtn.disabled = true;
-  startBtn.textContent = 'Extracting...';
-  setProgress(0, 'Starting...');
-  currentJobUrl = url;
+  startBtn.textContent = 'Extracting... (this may take 30-60 seconds)';
 
-  const companyName = extractCompanyNameFromUrl(url);
-
-  if (companyName) {
-    setProgress(30, 'Company found: ' + companyName);
-    showStatus('Company identified: ' + companyName, 'info');
-    generateBookmarklet(companyName);
-    setProgress(60, 'Bookmarklet ready — go to LinkedIn and click it');
-  } else {
-    setProgress(20, 'Navigate to the job page first, then use the bookmarklet');
-    showStatus('Paste the URL above, then use the bookmarklet on the LinkedIn page', 'info');
-    generateBookmarklet(null);
-  }
-
-  startBtn.disabled = false;
-  startBtn.textContent = 'Start Extraction';
-  hideProgress();
-}
-
-function extractCompanyNameFromUrl(jobUrl) {
   try {
-    const url = new URL(jobUrl);
-    const parts = url.pathname.split('/').filter(Boolean);
+    const resp = await fetch(BACKEND_URL + '/api/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobUrl: url, email }),
+    });
 
-    const companyIdx = parts.indexOf('company');
-    if (companyIdx > 0) return parts[companyIdx + 1];
+    const data = await resp.json();
 
-    const viewIdx = parts.indexOf('jobs');
-    if (viewIdx > 0 && parts[viewIdx + 1] === 'view') return parts[viewIdx - 1];
+    if (resp.ok) {
+      subscribeToken = data.subscribeToken;
 
-    return null;
-  } catch {
-    return null;
-  }
-}
+      if (data.count === 0) {
+        showStatus(data.message || 'No contacts found matching the target roles', 'info');
+      } else {
+        showStatus(data.message, 'success');
+        filteredContacts = data.contacts;
+        renderResults(data.contacts);
 
-function generateBookmarklet(companyName) {
-  const code = `javascript:(function(){
-    var data = {url: window.location.href, title: document.title, company: '${companyName || ''}'};
-    var companyEl = document.querySelector('.job-card-container__company-name, .company-name, a[href*="/company/"], .top-card__company-name');
-    if (companyEl) data.company = companyEl.textContent.trim();
-    var profiles = [];
-    document.querySelectorAll('a[href*="/in/"]').forEach(function(a) {
-      var href = a.href;
-      if (href.includes('/in/') && !href.includes('/jobs') && !href.includes('/company')) {
-        var m = href.match(/\\/in\\/[^\\/?#]+/);
-        if (m) profiles.push('https://www.linkedin.com' + m[0]);
+        if (subscribeToken) {
+          sendResultsBtn.classList.remove('hidden');
+        }
       }
-    });
-    data.profiles = profiles;
-    var emailEls = document.querySelectorAll('a[href^="mailto:"]');
-    var emails = [];
-    emailEls.forEach(function(el) { emails.push(el.getAttribute('href').replace('mailto:','')); });
-    data.emails = emails;
-    var hash = encodeURIComponent(JSON.stringify(data));
-    window.open('https://linkedin-hunter.vercel.app/#' + hash, '_blank');
-  })();`;
-
-  bookmarkletCode.classList.remove('hidden');
-  bookmarkletCode.innerHTML = '<span class="label">Drag to bookmarks bar:</span><br>' + code;
-}
-
-function handleBookmarklet() {
-  const code = `javascript:(function(){var data={url:window.location.href,title:document.title,company:''};var companyEl=document.querySelector('.job-card-container__company-name,.company-name,a[href*="/company/"],.top-card__company-name');if(companyEl)data.company=companyEl.textContent.trim();var profiles=[];document.querySelectorAll('a[href*="/in/"]').forEach(function(a){var href=a.href;if(href.includes('/in/')&&!href.includes('/jobs')&&!href.includes('/company')){var m=href.match(/\\/in\\/[^\\/?#]+/);if(m)profiles.push('https://www.linkedin.com'+m[0]);}});data.profiles=profiles;var emailEls=document.querySelectorAll('a[href^="mailto:"]');var emails=[];emailEls.forEach(function(el){emails.push(el.getAttribute('href').replace('mailto:''));});data.emails=emails;var hash=encodeURIComponent(JSON.stringify(data));window.open('https://linkedin-hunter.vercel.app/#'+hash,'_blank');})();`;
-
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(code).then(() => {
-      showStatus('Bookmarklet code copied! Paste it as a new bookmark.', 'success');
-    });
-  } else {
-    bookmarkletCode.classList.remove('hidden');
-    bookmarkletCode.innerHTML = '<span class="label">Copy this code:</span><br><code>' + code + '</code>';
+    } else {
+      showStatus(data.error || 'Extraction failed', 'error');
+    }
+  } catch (err) {
+    showStatus('Error: ' + (err.message || 'Could not connect to backend'), 'error');
+  } finally {
+    startBtn.disabled = false;
+    startBtn.textContent = 'Start Extraction';
   }
 }
 
-function handleClearResults() {
-  collectedContacts = [];
-  resultsCard.classList.add('hidden');
-  resultsList.innerHTML = '';
-  resultCount.textContent = '';
-  showStatus('Results cleared.', 'info');
+function handleFilterChange() {
+  renderResults(filteredContacts);
 }
 
-function handleCopyAll() {
-  const emails = collectedContacts.filter(c => c.email).map(c => c.email);
+async function handleSendResults() {
+  if (!subscribeToken) return;
+
+  sendResultsBtn.disabled = true;
+  sendResultsBtn.textContent = 'Sending...';
+
+  try {
+    const resp = await fetch(BACKEND_URL + '/api/results/' + subscribeToken, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contacts: filteredContacts }),
+    });
+
+    const data = await resp.json();
+    if (resp.ok) {
+      showStatus('Results emailed to you!', 'success');
+    } else {
+      showStatus('Failed to send: ' + data.error, 'error');
+    }
+  } catch (err) {
+    showStatus('Error sending results: ' + err.message, 'error');
+  } finally {
+    sendResultsBtn.disabled = false;
+    sendResultsBtn.textContent = 'Send Results to My Email';
+  }
+}
+
+function handleCopyEmails() {
+  const emails = filteredContacts.filter((c) => c.email).map((c) => c.email);
   if (emails.length === 0) {
     showStatus('No emails to copy', 'info');
     return;
@@ -197,99 +143,93 @@ function handleCopyAll() {
 }
 
 function handleExportCsv() {
-  if (collectedContacts.length === 0) {
+  if (filteredContacts.length === 0) {
     showStatus('No data to export', 'info');
     return;
   }
 
-  const headers = ['Name', 'Role', 'Email', 'Profile URL'];
-  const rows = collectedContacts.map(c => [
+  const headers = ['Name', 'Title', 'Profile URL', 'Email', 'Verified'];
+  const rows = filteredContacts.map((c) => [
     c.name || '',
-    c.role || '',
+    c.title || '',
+    c.profileUrl || '',
     c.email || '',
-    c.profileUrl || ''
+    c.emailVerified ? 'Yes' : 'No',
   ]);
 
-  const csv = [headers.join(','), ...rows.map(r => r.map(v => '"' + v.replace(/"/g, '""') + '"').join(','))].join('\n');
+  const csv = [
+    headers.join(','),
+    ...rows.map((r) =>
+      r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',')
+    ),
+  ].join('\n');
 
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'linkedin-contacts.csv';
+  a.download = 'linkedin-recruiters.csv';
   a.click();
   URL.revokeObjectURL(url);
 
   showStatus('CSV exported!', 'success');
 }
 
-function loadFromHash() {
-  const hash = window.location.hash.slice(1);
-  if (!hash) return;
+function renderResults(contacts) {
+  resultsCard.classList.remove('hidden');
+  resultsList.innerHTML = '';
+  resultCount.textContent = contacts.length + ' contact(s) found';
 
-  try {
-    const data = JSON.parse(decodeURIComponent(hash));
-    processExtractedData(data);
-    window.location.hash = '';
-  } catch (e) {
-    console.error('Failed to parse hash data:', e);
+  const showVerifiedOnly = showVerifiedChk.checked;
+  const displayContacts = showVerifiedOnly
+    ? contacts.filter((c) => c.emailVerified)
+    : contacts;
+
+  if (displayContacts.length === 0) {
+    resultsList.innerHTML =
+      '<p style="font-size:13px;color:#666;">No contacts match the current filters.</p>';
+    return;
   }
-}
 
-function addContact(contact) {
-  const email = (contact.email || '').trim().toLowerCase();
-  const hasDuplicate = collectedContacts.some((item) => {
-    const itemEmail = (item.email || '').trim().toLowerCase();
-    return email && itemEmail && email === itemEmail;
+  displayContacts.forEach((c) => {
+    const item = document.createElement('div');
+    item.className = 'result-item';
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'name';
+    nameRow.textContent = c.name || 'Unknown';
+    if (c.emailVerified) {
+      const badge = document.createElement('span');
+      badge.className = 'verified-badge';
+      badge.textContent = 'Verified';
+      nameRow.appendChild(badge);
+    }
+    item.appendChild(nameRow);
+
+    if (c.title) {
+      const title = document.createElement('div');
+      title.className = 'role';
+      title.textContent = c.title;
+      item.appendChild(title);
+    }
+
+    if (c.profileUrl) {
+      const profileUrl = document.createElement('div');
+      profileUrl.className = 'profile-url';
+      profileUrl.textContent = c.profileUrl;
+      item.appendChild(profileUrl);
+    }
+
+    const email = document.createElement('div');
+    if (c.email) {
+      email.className = 'email ' + (c.emailVerified ? 'verified' : '');
+      email.textContent = c.email;
+    } else {
+      email.className = 'no-email';
+      email.textContent = 'No email found';
+    }
+    item.appendChild(email);
+
+    resultsList.appendChild(item);
   });
-
-  if (!hasDuplicate) {
-    collectedContacts.push(contact);
-  }
 }
-
-function processExtractedData(data) {
-  hideStatus();
-
-  if (data.company) {
-    setProgress(30, 'Company: ' + data.company);
-  }
-
-  if (data.profiles && data.profiles.length > 0) {
-    setProgress(60, 'Found ' + data.profiles.length + ' profile(s)');
-  }
-
-  if (data.emails && data.emails.length > 0) {
-    setProgress(90, 'Found ' + data.emails.length + ' email(s)');
-  }
-
-  const nameEl = document.querySelector('.text-heading-xlarge, h1');
-  const name = nameEl ? nameEl.textContent.trim() : '';
-
-  const roleEl = document.querySelector('.text-body-medium, .pv-top-card--headline');
-  const role = roleEl ? roleEl.textContent.trim() : '';
-
-  if (data.emails && data.emails.length > 0) {
-    data.emails.forEach(email => {
-      addContact({
-        name: name || 'Unknown',
-        role: role || '',
-        email: email,
-        profileUrl: data.url || ''
-      });
-    });
-  } else {
-    addContact({
-      name: name || 'Unknown',
-      role: role || '',
-      email: null,
-      profileUrl: data.url || ''
-    });
-  }
-
-  setProgress(100, 'Done!');
-  showResults();
-  showStatus('Data extracted successfully!', 'success');
-}
-
-window.addEventListener('load', loadFromHash);
