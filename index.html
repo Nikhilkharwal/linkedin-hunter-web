@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinkedIn Hunter — Extract Recruiter Emails</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>LinkedIn Hunter</h1>
+      <p class="tagline">Extract hiring managers & recruiters from LinkedIn job links</p>
+    </header>
+
+    <main>
+      <section class="card input-card">
+        <h2>Step 1 — Paste Job URL</h2>
+        <div class="input-group">
+          <input type="url" id="jobUrl" placeholder="https://www.linkedin.com/jobs/view/..." />
+        </div>
+        <button id="startBtn" class="primary-btn">Start Extraction</button>
+        <div id="status" class="status hidden"></div>
+      </section>
+
+      <section class="card progress-card hidden" id="progressCard">
+        <h2>Extracting...</h2>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <p id="progressText" class="progress-text"></p>
+      </section>
+
+      <section class="card bookmarklet-card">
+        <h2>Step 2 — Use the Bookmarklet</h2>
+        <p>Drag the button below to your bookmarks bar, then click it on any LinkedIn page to extract data.</p>
+        <button id="bookmarkletBtn" class="secondary-btn">📌 Get Bookmarklet</button>
+        <div id="bookmarkletCode" class="bookmarklet-code hidden"></div>
+      </section>
+
+      <section class="card results-card hidden" id="resultsCard">
+        <div class="results-header">
+          <h2>Results</h2>
+          <span id="resultCount" class="result-count"></span>
+        </div>
+        <div id="resultsList"></div>
+        <div class="results-actions">
+          <button id="copyAllBtn" class="secondary-btn">Copy All Emails</button>
+          <button id="exportCsvBtn" class="secondary-btn">Export CSV</button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>LinkedIn Hunter — Built for recruiter outreach</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
