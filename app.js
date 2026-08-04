@@ -8,6 +8,7 @@ const resultsCard = document.getElementById('resultsCard');
 const resultsList = document.getElementById('resultsList');
 const resultCount = document.getElementById('resultCount');
 const copyAllBtn = document.getElementById('copyAllBtn');
+const clearResultsBtn = document.getElementById('clearResultsBtn');
 const exportCsvBtn = document.getElementById('exportCsvBtn');
 const bookmarkletBtn = document.getElementById('bookmarkletBtn');
 const bookmarkletCode = document.getElementById('bookmarkletCode');
@@ -16,7 +17,9 @@ let collectedContacts = [];
 let currentJobUrl = '';
 
 startBtn.addEventListener('click', handleStart);
+jobUrlInput.addEventListener('keydown', handleInputKeydown);
 copyAllBtn.addEventListener('click', handleCopyAll);
+clearResultsBtn.addEventListener('click', handleClearResults);
 exportCsvBtn.addEventListener('click', handleExportCsv);
 bookmarkletBtn.addEventListener('click', handleBookmarklet);
 
@@ -74,6 +77,13 @@ function showResults() {
   });
 }
 
+function handleInputKeydown(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    handleStart();
+  }
+}
+
 function handleStart() {
   const url = jobUrlInput.value.trim();
   if (!url) {
@@ -129,7 +139,7 @@ function extractCompanyNameFromUrl(jobUrl) {
 }
 
 function generateBookmarklet(companyName) {
-  const bookmarkletCode = `javascript:(function(){
+  const code = `javascript:(function(){
     var data = {url: window.location.href, title: document.title, company: '${companyName || ''}'};
     var companyEl = document.querySelector('.job-card-container__company-name, .company-name, a[href*="/company/"], .top-card__company-name');
     if (companyEl) data.company = companyEl.textContent.trim();
@@ -151,7 +161,7 @@ function generateBookmarklet(companyName) {
   })();`;
 
   bookmarkletCode.classList.remove('hidden');
-  bookmarkletCode.innerHTML = '<span class="label">Drag to bookmarks bar:</span><br>' + bookmarkletCode.textContent;
+  bookmarkletCode.innerHTML = '<span class="label">Drag to bookmarks bar:</span><br>' + code;
 }
 
 function handleBookmarklet() {
@@ -165,6 +175,14 @@ function handleBookmarklet() {
     bookmarkletCode.classList.remove('hidden');
     bookmarkletCode.innerHTML = '<span class="label">Copy this code:</span><br><code>' + code + '</code>';
   }
+}
+
+function handleClearResults() {
+  collectedContacts = [];
+  resultsCard.classList.add('hidden');
+  resultsList.innerHTML = '';
+  resultCount.textContent = '';
+  showStatus('Results cleared.', 'info');
 }
 
 function handleCopyAll() {
@@ -218,6 +236,18 @@ function loadFromHash() {
   }
 }
 
+function addContact(contact) {
+  const email = (contact.email || '').trim().toLowerCase();
+  const hasDuplicate = collectedContacts.some((item) => {
+    const itemEmail = (item.email || '').trim().toLowerCase();
+    return email && itemEmail && email === itemEmail;
+  });
+
+  if (!hasDuplicate) {
+    collectedContacts.push(contact);
+  }
+}
+
 function processExtractedData(data) {
   hideStatus();
 
@@ -241,7 +271,7 @@ function processExtractedData(data) {
 
   if (data.emails && data.emails.length > 0) {
     data.emails.forEach(email => {
-      collectedContacts.push({
+      addContact({
         name: name || 'Unknown',
         role: role || '',
         email: email,
@@ -249,7 +279,7 @@ function processExtractedData(data) {
       });
     });
   } else {
-    collectedContacts.push({
+    addContact({
       name: name || 'Unknown',
       role: role || '',
       email: null,
