@@ -1,4 +1,6 @@
-const BACKEND_URL = 'http://localhost:3000';
+const BACKEND_URL = (typeof window !== 'undefined' && typeof window.getBackendUrl === 'function')
+  ? window.getBackendUrl(window.location.hostname, window.location.search)
+  : 'http://localhost:3000';
 
 const startBtn = document.getElementById('startBtn');
 const jobUrlInput = document.getElementById('jobUrl');
