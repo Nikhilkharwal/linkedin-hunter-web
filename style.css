@@ -228,53 +228,6 @@ header h1 {
   font-style: italic;
 }
 
-.bookmarklet-card {
-  background: #f8fbff;
-  border: 1px solid #dce8f6;
-}
-
-.help-text {
-  font-size: 13px;
-  color: #555;
-  margin-bottom: 12px;
-  line-height: 1.5;
-}
-
-.bookmarklet-box {
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px dashed #0a66c2;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.bookmarklet-link {
-  display: inline-block;
-  padding: 8px 12px;
-  background: #0a66c2;
-  color: white;
-  text-decoration: none;
-  border-radius: 6px;
-  font-weight: 600;
-  margin: 8px 0;
-}
-
-.bookmarklet-code {
-  margin-top: 8px;
-  padding: 8px;
-  background: #f5f5f5;
-  border-radius: 6px;
-  font-size: 11px;
-  line-height: 1.5;
-  word-break: break-all;
-  font-family: Consolas, monospace;
-}
-
-.small {
-  font-size: 12px;
-  color: #666;
-}
-
 .results-actions {
   display: flex;
   gap: 8px;
@@ -290,5 +243,41 @@ footer {
   text-align: center;
   padding: 20px 0;
   font-size: 12px;
+  color: #999;
+}
+
+.progress-container {
+  margin-top: 16px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #0a66c2;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+}
+
+.progress-text {
+  font-weight: 500;
+}
+
+.progress-time {
   color: #999;
 }

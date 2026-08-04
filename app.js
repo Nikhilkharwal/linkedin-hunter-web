@@ -1,9 +1,4 @@
-const { getBackendUrl } = window.__LINKEDIN_HUNTER_BACKEND__ || {};
-const BACKEND_URL = getBackendUrl
-  ? getBackendUrl(window.location.hostname, window.location.search)
-  : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:3000'
-    : 'https://linkedin-hunter-backend.onrender.com';
+const BACKEND_URL = 'http://localhost:3000';
 
 const startBtn = document.getElementById('startBtn');
 const jobUrlInput = document.getElementById('jobUrl');
@@ -124,7 +119,12 @@ async function handleStart() {
     startPolling();
 
   } catch (err) {
-    showStatus('Error: ' + (err.message || 'Could not connect to backend'), 'error');
+    console.error('Fetch error:', err);
+    showStatus(
+      'Error: Could not connect to backend at ' + BACKEND_URL +
+      '. Make sure the backend is running and accessible.',
+      'error'
+    );
     resetUi();
   }
 }
