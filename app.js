@@ -1,4 +1,9 @@
-const BACKEND_URL = 'http://localhost:3000';
+const { getBackendUrl } = window.__LINKEDIN_HUNTER_BACKEND__ || {};
+const BACKEND_URL = getBackendUrl
+  ? getBackendUrl(window.location.hostname, window.location.search)
+  : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000'
+    : 'https://linkedin-hunter-backend.onrender.com';
 
 const startBtn = document.getElementById('startBtn');
 const jobUrlInput = document.getElementById('jobUrl');
@@ -13,9 +18,16 @@ const showVerifiedChk = document.getElementById('showVerified');
 const enableSubscribeChk = document.getElementById('enableSubscribe');
 const subscribeGroup = document.getElementById('subscribeGroup');
 const subscribeEmail = document.getElementById('subscribeEmail');
+const progressContainer = document.getElementById('progressContainer');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const progressTime = document.getElementById('progressTime');
 
 let filteredContacts = [];
 let subscribeToken = null;
+let taskId = null;
+let startTime = null;
+let pollInterval = null;
 
 startBtn.addEventListener('click', handleStart);
 copyEmailsBtn.addEventListener('click', handleCopyEmails);
@@ -34,12 +46,35 @@ function hideStatus() {
   statusEl.classList.add('hidden');
 }
 
+function setProgress(percent, text, eta) {
+  progressContainer.classList.remove('hidden');
+  progressFill.style.width = percent + '%';
+  progressText.textContent = text;
+  if (eta !== undefined) {
+    progressTime.textContent = eta + ' remaining';
+  }
+}
+
+function hideProgress() {
+  progressContainer.classList.add('hidden');
+  progressFill.style.width = '0%';
+  progressText.textContent = '';
+  progressTime.textContent = '';
+}
+
 function handleSubscribeToggle() {
   if (enableSubscribeChk.checked) {
     subscribeGroup.classList.remove('hidden');
   } else {
     subscribeGroup.classList.add('hidden');
   }
+}
+
+function formatTime(seconds) {
+  if (seconds < 60) return seconds + 's';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return m + 'm ' + s + 's';
 }
 
 async function handleStart() {
@@ -64,7 +99,8 @@ async function handleStart() {
   hideStatus();
   resultsCard.classList.add('hidden');
   startBtn.disabled = true;
-  startBtn.textContent = 'Extracting... (this may take 30-60 seconds)';
+  startBtn.textContent = 'Starting extraction...';
+  setProgress(0, 'Submitting request...', '');
 
   try {
     const resp = await fetch(BACKEND_URL + '/api/extract', {
@@ -75,29 +111,80 @@ async function handleStart() {
 
     const data = await resp.json();
 
-    if (resp.ok) {
-      subscribeToken = data.subscribeToken;
-
-      if (data.count === 0) {
-        showStatus(data.message || 'No contacts found matching the target roles', 'info');
-      } else {
-        showStatus(data.message, 'success');
-        filteredContacts = data.contacts;
-        renderResults(data.contacts);
-
-        if (subscribeToken) {
-          sendResultsBtn.classList.remove('hidden');
-        }
-      }
-    } else {
+    if (!resp.ok) {
       showStatus(data.error || 'Extraction failed', 'error');
+      resetUi();
+      return;
     }
+
+    taskId = data.taskId;
+    subscribeToken = data.token;
+    startTime = Date.now();
+
+    startPolling();
+
   } catch (err) {
     showStatus('Error: ' + (err.message || 'Could not connect to backend'), 'error');
-  } finally {
-    startBtn.disabled = false;
-    startBtn.textContent = 'Start Extraction';
+    resetUi();
   }
+}
+
+function startPolling() {
+  progressText.textContent = 'Queued...';
+  progressTime.textContent = '';
+
+  pollInterval = setInterval(async () => {
+    try {
+      const resp = await fetch(BACKEND_URL + '/api/progress/' + taskId);
+      const task = await resp.json();
+
+      if (task.status === 'complete') {
+        clearInterval(pollInterval);
+        handleComplete(task);
+      } else if (task.status === 'error') {
+        clearInterval(pollInterval);
+        showStatus(task.error || 'Extraction failed', 'error');
+        resetUi();
+      } else {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const eta = task.progress > 0 ? formatTime((elapsed / task.progress) * (100 - task.progress)) : 'Calculating...';
+        setProgress(task.progress, task.message || 'Working...', eta);
+      }
+    } catch (err) {
+      clearInterval(pollInterval);
+      showStatus('Polling error: ' + err.message, 'error');
+    }
+  }, 2000);
+}
+
+function handleComplete(task) {
+  hideProgress();
+  filteredContacts = task.contacts || [];
+  subscribeToken = task.subscribeToken || subscribeToken;
+
+  if (filteredContacts.length === 0) {
+    showStatus('No contacts found matching the target roles', 'info');
+  } else {
+    const verifiedCount = filteredContacts.filter((c) => c.emailVerified).length;
+    showStatus(
+      'Done! Found ' + filteredContacts.length + ' contacts (' +
+        verifiedCount + ' with verified emails)',
+      'success'
+    );
+    renderResults(filteredContacts);
+    if (subscribeToken) {
+      sendResultsBtn.classList.remove('hidden');
+    }
+  }
+
+  startBtn.disabled = false;
+  startBtn.textContent = 'Start Extraction';
+}
+
+function resetUi() {
+  startBtn.disabled = false;
+  startBtn.textContent = 'Start Extraction';
+  hideProgress();
 }
 
 function handleFilterChange() {
@@ -201,7 +288,7 @@ function renderResults(contacts) {
     if (c.emailVerified) {
       const badge = document.createElement('span');
       badge.className = 'verified-badge';
-      badge.textContent = 'Verified';
+      badge.textContent = '✓ Verified';
       nameRow.appendChild(badge);
     }
     item.appendChild(nameRow);

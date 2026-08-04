@@ -34,16 +34,15 @@
 
         <button id="startBtn" class="primary-btn">Start Extraction</button>
         <div id="status" class="status hidden"></div>
-      </section>
 
-      <section class="card bookmarklet-card">
-        <h2>Bookmarklet</h2>
-        <p class="help-text">Drag the button below to your browser bookmarks bar. Then open a LinkedIn company people page and click it.</p>
-        <button id="startBookmarkletBtn" class="secondary-btn">📌 Drag this to bookmarks</button>
-        <div id="bookmarkletBox" class="bookmarklet-box hidden">
-          <p class="small">Drag this link to your bookmarks bar:</p>
-          <a id="bookmarkletLink" class="bookmarklet-link" href="#">LinkedIn Hunter</a>
-          <div id="bookmarkletCode" class="bookmarklet-code"></div>
+        <div class="progress-container hidden" id="progressContainer">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-info">
+            <span id="progressText" class="progress-text"></span>
+            <span id="progressTime" class="progress-time"></span>
+          </div>
         </div>
       </section>
 
@@ -72,6 +71,13 @@
     </footer>
   </div>
 
+  <script src="backend-url.js"></script>
+  <script>
+    window.__LINKEDIN_HUNTER_BACKEND__ = window.__LINKEDIN_HUNTER_BACKEND__ || {};
+    if (typeof window.getBackendUrl === 'function') {
+      window.__LINKEDIN_HUNTER_BACKEND__.getBackendUrl = window.getBackendUrl;
+    }
+  </script>
   <script src="app.js"></script>
 </body>
 </html>
