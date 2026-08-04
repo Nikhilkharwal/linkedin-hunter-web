@@ -1,4 +1,4 @@
-const BACKEND_URL = 'http://localhost:3000';
+const BACKEND_URL = 'http://localhost:3000'; 
 const startBtn = document.getElementById('startBtn');
 const jobUrlInput = document.getElementById('jobUrl');
 const statusEl = document.getElementById('status');
