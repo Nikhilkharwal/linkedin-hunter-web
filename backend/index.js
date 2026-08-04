@@ -2,7 +2,7 @@ const express = require('express');
 const dns = require('dns').promises;
 const cors = require('cors');
 const nodemailer = require('nodemailer');
-const { TARGET_ROLES } = require('./config');
+const { TARGET_ROLES, matchesTargetRole } = require('./config');
 const puppeteer = require('puppeteer');
 
 const app = express();
@@ -29,12 +29,6 @@ function normalizeJobUrl(jobUrl) {
   } catch {
     return jobUrl;
   }
-}
-
-function matchesTargetRole(title) {
-  if (!title) return false;
-  const lower = title.toLowerCase();
-  return TARGET_ROLES.some((role) => lower.includes(role));
 }
 
 async function verifyEmailDomain(email) {
