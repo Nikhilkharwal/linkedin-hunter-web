@@ -182,8 +182,73 @@ async function scrapeLinkedIn(jobUrl, taskId, subscriberEmail) {
         const nameEl = document.querySelector('.text-heading-xlarge, h1, .pv-top-card--headline');
         const name = nameEl ? nameEl.textContent.trim() : null;
 
-        const titleEl = document.querySelector('.text-body-medium, .pv-top-card--headline .text-body-small, .pv-top-card--headline, .pv-top-card h2');
-        const title = titleEl ? titleEl.textContent.trim() : null;
+        // Robust role extraction - multiple strategies
+        let title = null;
+        
+        // Strategy 1: Old selectors (legacy)
+        const oldSelectors = [
+          '.text-body-medium',
+          '.pv-top-card--headline .text-body-small',
+          '.pv-top-card--headline',
+          '.pv-top-card h2',
+          '.top-card-layout__headline',
+          '.pv-top-card--headline',
+          '[data-test-id="headline"]',
+          '[data-test-id="profile-headline"]',
+        ];
+        
+        for (const selector of oldSelectors) {
+          const el = document.querySelector(selector);
+          if (el && el.textContent.trim()) {
+            title = el.textContent.trim();
+            break;
+          }
+        }
+
+        // Strategy 2: Find headline by text pattern "Role at Company"
+        if (!title) {
+          const allText = document.body.innerText;
+          const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 0 && l.length < 200);
+          
+          // Look for "Role at Company" pattern
+          const rolePattern = /\b.+\s+at\s+\w+.+/i;
+          for (const line of lines) {
+            if (rolePattern.test(line) && 
+                /talent|recruit|hiring|manager|director|lead|head|vp|engineer|acquisition|staffing|hr|partner/i.test(line)) {
+              title = line;
+              break;
+            }
+          }
+        }
+
+        // Strategy 3: Find element containing "at " pattern near name
+        if (!title) {
+          const nameEl = document.querySelector('.text-heading-xlarge, h1, .pv-top-card--headline, h1[class*="headline"]');
+          if (nameEl) {
+            let sibling = nameEl.nextElementSibling;
+            while (sibling) {
+              const text = sibling.textContent?.trim();
+              if (text && text.includes(' at ') && text.length < 200) {
+                title = text;
+                break;
+              }
+              sibling = sibling.nextElementSibling;
+            }
+          }
+        }
+
+        // Strategy 4: Broad search for role-like text
+        if (!title) {
+          const elements = document.querySelectorAll('p, h2, h3, span, div');
+          for (const el of elements) {
+            const text = el.textContent?.trim();
+            if (text && text.includes(' at ') && text.length < 200 && 
+                /talent|recruit|hiring|manager|director|lead|head|vp|engineer|acquisition|staffing|hr|partner/i.test(text)) {
+              title = text.trim();
+              break;
+            }
+          }
+        }
 
         const emailEl = document.querySelector('a[href^="mailto:"]');
         const email = emailEl ? emailEl.getAttribute('href').replace('mailto:', '').trim() : null;
