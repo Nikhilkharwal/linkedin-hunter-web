@@ -14,8 +14,6 @@ const subscriptions = new Map();
 const emailCache = new Map();
 const tasks = new Map();
 
-const MAX_CONTACTS = 12;
-
 function normalizeJobUrl(jobUrl) {
   try {
     const url = new URL(jobUrl);
@@ -88,7 +86,7 @@ function updateTask(taskId, data) {
 }
 
 async function scrapeLinkedIn(jobUrl, taskId, subscriberEmail) {
-  updateTask(taskId, { status: 'running', progress: 0, total: MAX_CONTACTS, message: 'Launching browser...' });
+  updateTask(taskId, { status: 'running', progress: 0, message: 'Launching browser...' });
 
   const normalizedUrl = normalizeJobUrl(jobUrl);
   updateTask(taskId, { progress: 5, message: 'Preparing LinkedIn job page...' });
@@ -150,7 +148,7 @@ async function scrapeLinkedIn(jobUrl, taskId, subscriberEmail) {
 
   updateTask(taskId, { progress: 20, message: `Opening company page: ${companyName}` });
   await page.goto(companyPeopleUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-  await page.waitForTimeout(3000);
+  await new Promise(resolve => setTimeout(resolve, 3000));
 
   await page.evaluate(() => {
     const scrollButton = document.querySelector('button[data-view-name="people-search-result"] button');
@@ -176,8 +174,6 @@ async function scrapeLinkedIn(jobUrl, taskId, subscriberEmail) {
   const totalProfiles = profileUrls.length;
 
   for (const profileUrl of profileUrls) {
-    if (contacts.length >= MAX_CONTACTS) break;
-
     try {
       profileCount++;
       updateTask(taskId, {
@@ -186,7 +182,7 @@ async function scrapeLinkedIn(jobUrl, taskId, subscriberEmail) {
       });
 
       await page.goto(profileUrl, { waitUntil: 'networkidle2', timeout: 15000 });
-      await page.waitForTimeout(1500);
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       const data = await page.evaluate(() => {
         const nameEl = document.querySelector('.text-heading-xlarge, h1, .pv-top-card--headline');
@@ -203,7 +199,7 @@ async function scrapeLinkedIn(jobUrl, taskId, subscriberEmail) {
 
       if (data.title && matchesTargetRole(data.title)) {
         contacts.push(data);
-      } else if (!data.title && data.email && contacts.length < MAX_CONTACTS) {
+      } else if (!data.title && data.email) {
         contacts.push(data);
       }
     } catch (err) {
@@ -273,7 +269,6 @@ app.post('/api/extract', async (req, res) => {
   tasks.set(taskId, {
     status: 'pending',
     progress: 0,
-    total: MAX_CONTACTS,
     message: 'Starting extraction...',
   });
 
