@@ -1,7 +1,7 @@
 # LinkedIn Hunter — Web App
 
 Extract hiring managers and recruiters' emails from LinkedIn job links — fully automatic, with real-time progress.
-# Still in progress
+# Still in progress  
 
 **Live Demo:** https://nikhilkharwal.github.io/linkedin-hunter-web/
 
